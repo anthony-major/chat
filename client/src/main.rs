@@ -24,11 +24,13 @@ async fn main() -> io::Result<()> {
     loop {
         tokio::select! {
             _ = buf_reader.read_line(&mut user_input) => {
-                user_input = user_input.replace("\\n", "\n");
-
                 if user_input.trim_end() == "quit" {
                     break;
                 }
+
+                user_input = user_input.replace("\\n", "\n");
+                user_input.pop();
+                user_input.push('\0');
 
                 println!("Sending message:\n{}", user_input);
                 buf_write_stream.write(user_input.as_bytes()).await?;

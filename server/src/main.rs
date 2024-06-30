@@ -7,6 +7,8 @@ use tokio::sync::broadcast::{channel, Receiver, Sender};
 
 use clap::Parser;
 
+use serde::{Deserialize, Serialize};
+
 #[tokio::main]
 async fn main() -> io::Result<()> {
     let args = Args::parse();
@@ -44,22 +46,29 @@ async fn handle_client(
 
     let (read_stream, mut write_stream) = io::split(stream);
 
-    let mut lines = BufReader::new(read_stream).lines();
+    let mut buf_read_stream = BufReader::new(read_stream);
+    let mut raw_message = Vec::<u8>::new();
 
     loop {
         tokio::select! {
-            line = lines.next_line() => {
-                match line {
-                    Ok(line) => {
-                        match line {
-                            Some(line) => {
-                                println!("[{}:{}] {}", addr.ip(), addr.port(), line);
-                                tx.send(line).expect("Failed to send through tx.");
-                            }
-                            _ => {
+            bytes_read = buf_read_stream.read_until(b'\0', &mut raw_message) => {
+                match bytes_read {
+                    Ok(bytes_read) if bytes_read > 0 => {
+                        let message = match String::from_utf8(raw_message) {
+                            Ok(message) => message,
+                            Err(e) => {
+                                println!("{}:{} {}", addr.ip(), addr.port(), e);
                                 break;
                             }
-                        }
+                        };
+        
+                        println!("[{}:{}]\n{}", addr.ip(), addr.port(), message);
+                        tx.send(message).expect("Failed to send through tx.");
+        
+                        raw_message = Vec::<u8>::new();
+                    }
+                    Ok(_) => {
+                        break;
                     }
                     Err(e) => {
                         println!("{} forcefully disconnected.", addr);
@@ -87,4 +96,10 @@ async fn handle_client(
 struct Args {
     #[arg(short, long, default_value_t = 9000)]
     port: u16,
+}
+
+#[derive(Serialize, Deserialize)]
+struct UserMessage {
+    username: String,
+    content: String,
 }
