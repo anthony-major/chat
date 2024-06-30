@@ -16,7 +16,7 @@ async fn main() -> io::Result<()> {
 
     let mut buf_read_stream = BufReader::new(read_stream);
     let mut buf_write_stream = BufWriter::new(write_stream);
-    let mut stream_input = String::new();
+    let mut stream_input = Vec::<u8>::new();
 
     let mut buf_reader = BufReader::new(io::stdin());
     let mut user_input = String::new();
@@ -39,10 +39,10 @@ async fn main() -> io::Result<()> {
 
                 user_input.clear();
             }
-            _ = buf_read_stream.read_line(&mut stream_input) => {
-                println!("Read message:\n{}", stream_input);
+            _ = buf_read_stream.read_until(b'\0', &mut stream_input) => {
+                println!("Read message:\n{}", String::from_utf8(stream_input).unwrap());
 
-                stream_input.clear();
+                stream_input = Vec::<u8>::new();
             }
         }
     }
