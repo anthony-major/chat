@@ -14,10 +14,13 @@ async fn main() -> io::Result<()> {
 
     let mut handles: Vec<JoinHandle<Result<(), io::Error>>> = Vec::new();
 
-    for i in 0..2 {
-        let handle = tokio::spawn(run(addr.clone(), i.to_string()));
-        handles.push(handle);
-    }
+    // for i in 0..2 {
+    //     let handle = tokio::spawn(run(addr.clone(), i.to_string()));
+    //     handles.push(handle);
+    // }
+
+    let handle = tokio::spawn(run(addr, String::from("john")));
+    handles.push(handle);
 
     for handle in handles {
         handle.await?.unwrap();
@@ -26,7 +29,57 @@ async fn main() -> io::Result<()> {
     Ok(())
 }
 
-async fn run(addr: String, username: String) -> io::Result<()> {
+async fn run(addr: String, mut username: String) -> io::Result<()> {
+    println!("Connecting to {}...", addr);
+    let stream = TcpStream::connect(addr).await?;
+    println!("Connected.");
+
+    let (read_stream, write_stream) = io::split(stream);
+
+    let mut buf_read_stream = BufReader::new(read_stream);
+    let mut buf_write_stream = BufWriter::new(write_stream);
+    let mut stream_input = Vec::<u8>::new();
+
+    let mut buf_reader = BufReader::new(io::stdin());
+    let mut user_input = String::new();
+
+    loop {
+        tokio::select! {
+            _ = buf_reader.read_line(&mut user_input) => {
+                if user_input.trim_end() == "quit" {
+                    break;
+                }
+
+                // Allow user messages to have newlines
+                user_input = user_input.replace("\\n", "\n").trim_end().to_string();
+
+                let message = UserMessage {
+                    username: username.clone(),
+                    content: user_input,
+                };
+                let mut message = serde_json::to_string(&message).unwrap();
+                message.push('\0');
+
+                println!("Sending message: {}", message);
+                buf_write_stream.write(message.as_bytes()).await?;
+                buf_write_stream.flush().await?;
+                println!("Sent.");
+
+                user_input = String::new();
+                username = String::from("bob");
+            }
+            _ = buf_read_stream.read_until(b'\0', &mut stream_input) => {
+                println!("Read message:\n{}", String::from_utf8(stream_input).unwrap());
+
+                stream_input = Vec::<u8>::new();
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn run_stress(addr: String, username: String) -> io::Result<()> {
     println!("Connecting to {}...", addr);
     let stream = TcpStream::connect(addr).await?;
     println!("Connected.");

@@ -81,8 +81,17 @@ async fn handle_client(
     
     let mut buf_read_stream = BufReader::new(read_stream);
 
-    // println!("{} waiting for username...", addr);
-    // read message here
+    println!("{} waiting for username...", addr);
+    let username = match read_message(&mut buf_read_stream, &addr).await {
+        Err(e) => {
+            println!("{} {}", addr, e);
+            return Ok(());
+        }
+        Ok(message) => {
+            message.username
+        }
+    };
+    println!("{} received username {}.", addr, username);
 
     loop {
         tokio::select! {
@@ -90,12 +99,12 @@ async fn handle_client(
                 let message = match message {
                     Ok(message) => message,
                     Err(e) => {
-                        println!("{} {}", addr, e);
+                        println!("{} {} {}", addr, username, e);
                         break;
                     }
                 };
 
-                println!("[{}] {:?}", addr, message);
+                println!("[{} {}] {:?}", addr, username, message);
                 tx.send(message).expect("Failed to send through tx.");
             }
             message = rx.recv() => {
