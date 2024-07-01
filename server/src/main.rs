@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio::sync::broadcast::{channel, Receiver, Sender};
@@ -36,8 +36,37 @@ async fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn read_message(buf_reader: &BufReader<TcpStream>) {
-    let raw_message = Vec::<u8>::new();
+async fn read_message(buf_reader: &mut BufReader<ReadHalf<TcpStream>>, addr: &SocketAddr) -> Result<UserMessage, io::Error> {
+    let mut raw_message = Vec::<u8>::new();
+
+    match buf_reader.read_until(b'\0', &mut raw_message).await {
+        Err(e) => {
+            return Err(e);
+        }
+        Ok(bytes_read) if bytes_read == 0 => {
+            return Err(io::Error::new(io::ErrorKind::ConnectionAborted, format!("{} disconnected.", addr)));
+        }
+        Ok(_) => {
+            let message = match String::from_utf8(raw_message) {
+                Ok(mut message) => {
+                    message.pop();
+                    message
+                },
+                Err(e) => {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, e.to_string()));
+                }
+            };
+
+            let message: UserMessage = match serde_json::from_str(&message) {
+                Ok(message) => message,
+                Err(e) => {
+                    return Err(e.into());
+                }
+            };
+
+            return Ok(message);
+        }
+    }
 }
 
 async fn handle_client(
@@ -51,61 +80,24 @@ async fn handle_client(
     let (read_stream, mut write_stream) = io::split(stream);
     
     let mut buf_read_stream = BufReader::new(read_stream);
-    let mut raw_message = Vec::<u8>::new();
 
-    println!("{} waiting for username...", addr);
-    match buf_read_stream.read_until(b'\0', &mut raw_message).await {
-        Ok(bytes_read) if bytes_read > 0 => {
-
-        }
-        Ok(_) => {
-            println!("{} disconnected.", addr);
-            return Ok(());
-        }
-        Err(e) => {
-            println!("{} forcefully disconnected.", addr);
-            return Err(e);
-        }
-    }
+    // println!("{} waiting for username...", addr);
+    // read message here
 
     loop {
         tokio::select! {
-            bytes_read = buf_read_stream.read_until(b'\0', &mut raw_message) => match bytes_read {
-                Ok(bytes_read) if bytes_read > 0 => {
-                    let message = match String::from_utf8(raw_message) {
-                        Ok(mut message) => {
-                            message.pop();
-                            message
-                        },
-                        Err(e) => {
-                            println!("{}:{} {}", addr.ip(), addr.port(), e);
-                            raw_message = Vec::<u8>::new();
-                            continue;
-                        }
-                    };
+            message = read_message(&mut buf_read_stream, &addr) => {
+                let message = match message {
+                    Ok(message) => message,
+                    Err(e) => {
+                        println!("{} {}", addr, e);
+                        break;
+                    }
+                };
 
-                    let message: UserMessage = match serde_json::from_str(&message) {
-                        Ok(message) => message,
-                        Err(e) => {
-                            println!("{} Error parsing json:\n{}", addr, e);
-                            raw_message = Vec::<u8>::new();
-                            continue;
-                        }
-                    };
-
-                    println!("[{}:{}]\n{:?}", addr.ip(), addr.port(), message);
-                    tx.send(message).expect("Failed to send through tx.");
-
-                    raw_message = Vec::<u8>::new();
-                }
-                Ok(_) => {
-                    break;
-                }
-                Err(e) => {
-                    println!("{} forcefully disconnected.", addr);
-                    return Err(e);
-                }
-            },
+                println!("[{}] {:?}", addr, message);
+                tx.send(message).expect("Failed to send through tx.");
+            }
             message = rx.recv() => {
                 let message = message.expect("Failed to read from rx.");
                 let mut message = serde_json::to_string(&message).unwrap();
@@ -119,7 +111,6 @@ async fn handle_client(
         }
     }
 
-    println!("{} disconnected.", addr);
     Ok(())
 }
 
