@@ -36,6 +36,10 @@ async fn main() -> io::Result<()> {
     Ok(())
 }
 
+fn read_message(buf_reader: &BufReader<TcpStream>) {
+    let raw_message = Vec::<u8>::new();
+}
+
 async fn handle_client(
     stream: TcpStream,
     addr: SocketAddr,
@@ -43,11 +47,26 @@ async fn handle_client(
     mut rx: Receiver<UserMessage>,
 ) -> io::Result<()> {
     println!("{} connected.", addr);
-
+    
     let (read_stream, mut write_stream) = io::split(stream);
-
+    
     let mut buf_read_stream = BufReader::new(read_stream);
     let mut raw_message = Vec::<u8>::new();
+
+    println!("{} waiting for username...", addr);
+    match buf_read_stream.read_until(b'\0', &mut raw_message).await {
+        Ok(bytes_read) if bytes_read > 0 => {
+
+        }
+        Ok(_) => {
+            println!("{} disconnected.", addr);
+            return Ok(());
+        }
+        Err(e) => {
+            println!("{} forcefully disconnected.", addr);
+            return Err(e);
+        }
+    }
 
     loop {
         tokio::select! {
