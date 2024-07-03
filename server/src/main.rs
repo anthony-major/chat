@@ -1,3 +1,6 @@
+mod message;
+mod server;
+
 use std::net::SocketAddr;
 
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf};
