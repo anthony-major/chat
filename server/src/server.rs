@@ -1,26 +1,23 @@
-use clap::Parser;
-
-use tokio::net::TcpListener;
-use tokio::sync::broadcast::channel;
+use tokio::io;
+use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::signal;
+use tokio::sync::broadcast::channel;
 
+use crate::client_handler::handle_client;
 use crate::message::Message;
 
-pub async fn run() {
-    let args = Args::parse();
-    let addr = format!("127.0.0.1:{}", args.port);
-
-    let listener = TcpListener::bind(addr).await?;
-    println!("Listening on port {}...", args.port);
+pub async fn run<A: ToSocketAddrs>(address: A, message_bound: usize) -> io::Result<()> {
+    let listener = TcpListener::bind(address).await?;
+    println!("Listening on port {}...", listener.local_addr()?.port());
     println!("Press ctrl+c to exit.");
 
-    let (tx, _) = channel::<UserMessage>(16);
+    let (tx, _) = channel::<Message>(message_bound);
 
     loop {
         tokio::select! {
-            future = listener.accept() => {
-                let (stream, addr) = future?;
-                tokio::spawn(handle_client(stream, addr, tx.clone(), tx.subscribe()));
+            connection = listener.accept() => {
+                let (stream, address) = connection?;
+                tokio::spawn(handle_client(stream, address, tx.clone(), tx.subscribe()));
             },
             _ = signal::ctrl_c() => {
                 break;
@@ -30,10 +27,4 @@ pub async fn run() {
 
     println!("Exiting...");
     Ok(())
-}
-
-#[derive(Parser)]
-struct Args {
-    #[arg(short, long, default_value_t = 9000)]
-    port: u16,
 }
