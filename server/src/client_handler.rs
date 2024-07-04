@@ -22,22 +22,23 @@ pub async fn handle_client(
     let mut buf_write_stream = BufWriter::new(write_stream);
 
     println!("{} waiting for username...", address);
-    let username = match read_message(&mut buf_read_stream, &address).await {
+    let username = match read_message(&mut buf_read_stream).await {
         Err(e) => {
-            println!("{} {}", address, e);
+            println!("{} {}.", address, e);
             return Ok(());
         }
         Ok(message) => message.username().clone(),
     };
     println!("{} received username {}.", address, username);
+    let _ = tx.send(Message::new(String::from("server"), format!("{} connected.", username)));
 
     loop {
         tokio::select! {
-            message = read_message(&mut buf_read_stream, &address) => {
+            message = read_message(&mut buf_read_stream) => {
                 let message = match message {
                     Ok(message) => message,
                     Err(e) => {
-                        println!("{} {} {}", address, username, e);
+                        println!("{} {} {}.", address, username, e);
                         break;
                     }
                 };

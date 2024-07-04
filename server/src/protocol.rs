@@ -7,7 +7,6 @@ use crate::message::Message;
 
 pub async fn read_message(
     buf_reader: &mut BufReader<ReadHalf<TcpStream>>,
-    address: &SocketAddr,
 ) -> Result<Message, io::Error> {
     let mut raw_message = Vec::<u8>::new();
 
@@ -18,7 +17,7 @@ pub async fn read_message(
         Ok(bytes_read) if bytes_read == 0 => {
             return Err(io::Error::new(
                 io::ErrorKind::ConnectionAborted,
-                format!("{} disconnected.", address),
+                String::from("disconnected"),
             ));
         }
         Ok(_) => {

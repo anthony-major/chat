@@ -14,7 +14,7 @@ async fn main() -> io::Result<()> {
     let args = Args::parse();
     let address = format!("127.0.0.1:{}", args.port);
 
-    run(address, 16).await?;
+    run(address, args.capacity).await?;
 
     Ok(())
 }
@@ -23,4 +23,7 @@ async fn main() -> io::Result<()> {
 struct Args {
     #[arg(short, long, default_value_t = 9000)]
     port: u16,
+
+    #[arg(short, long, default_value_t = 16)]
+    capacity: usize
 }
