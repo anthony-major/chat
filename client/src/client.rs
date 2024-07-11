@@ -1,89 +1,53 @@
-use iced::widget::scrollable::{RelativeOffset, Viewport};
-use iced::widget::{column, scrollable, text, text_input, Column, Container};
-use iced::{executor, Application, Command, Element, Length, Theme};
+use tokio::io::{self, BufReader, BufWriter, ReadHalf, WriteHalf};
+use tokio::net::TcpStream;
 
 use crate::message::Message;
+use crate::protocol::{read_message, write_message};
 
 pub struct Client {
+    reader: BufReader<ReadHalf<TcpStream>>,
+    writer: BufWriter<WriteHalf<TcpStream>>,
     username: String,
-    input: String,
     messages: Vec<Message>,
-    scroll_id: scrollable::Id,
-    scrolled_to_bottom: bool,
+    running: bool,
 }
 
-impl Application for Client {
-    type Executor = executor::Default;
-    type Flags = ();
-    type Message = UiMessage;
-    type Theme = Theme;
+impl Client {
+    pub async fn connect(server_address: String, username: String) -> io::Result<Self> {
+        let stream = TcpStream::connect(server_address).await?;
+        let (read_half, write_half) = io::split(stream);
 
-    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        let scroll_id = scrollable::Id::unique();
-        (
-            Self {
-                username: String::from("User"),
-                input: String::new(),
-                messages: Vec::new(),
-                scroll_id: scroll_id.clone(),
-                scrolled_to_bottom: true,
-            },
-            scrollable::snap_to(scroll_id, RelativeOffset::END),
-        )
+        Ok(Self {
+            reader: BufReader::new(read_half),
+            writer: BufWriter::new(write_half),
+            username: username,
+            messages: Vec::new(),
+            running: true,
+        })
     }
 
-    fn title(&self) -> String {
-        String::from("Chat")
-    }
-
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
-        match message {
-            UiMessage::Scrolled(viewport) => {
-                self.scrolled_to_bottom = viewport.relative_offset().y == 1.0;
-            },
-            UiMessage::Inputted(input) => {
-                self.input = input;
-            }
-            UiMessage::Submitted => {
-                self.messages.push(Message::new(self.username.clone(), self.input.clone()));
-                self.input.clear();
-                if self.scrolled_to_bottom {
-                    return scrollable::snap_to(self.scroll_id.clone(), RelativeOffset::END);
-                }
-            }
+    pub async fn run_read_loop(&mut self) -> io::Result<()> {
+        while self.running {
+            let message = read_message(&mut self.reader).await?;
+            self.messages.push(message);
         }
-        Command::none()
+
+        Ok(())
     }
 
-    fn view(&self) -> Element<Self::Message> {
-        let lines: Vec<Element<Self::Message>> = self
-            .messages
-            .iter()
-            .map(|message| text(message.to_string()).into())
-            .collect();
-        let scroll_column = Column::with_children(lines);
-        let chat_box = scrollable(scroll_column)
-            .id(self.scroll_id.clone())
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .on_scroll(UiMessage::Scrolled);
-
-        let input_box = text_input("Enter message...", &self.input)
-            .on_input(UiMessage::Inputted)
-            .on_submit(UiMessage::Submitted);
-
-        let main_column = column![chat_box, input_box];
-
-        Container::new(main_column)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+    pub async fn send_message(&mut self, message: Message) -> io::Result<()> {
+        write_message(&mut self.writer, message).await
     }
-}
 
-#[derive(Debug, Clone)]
-pub enum UiMessage {
-    Scrolled(Viewport),
-    Inputted(String),
-    Submitted,
+    pub fn stop_read_loop(&mut self) {
+        self.running = false;
+    }
+
+    pub fn messages(&self) -> &Vec<Message> {
+        &self.messages
+    }
+
+    pub fn username(&self) -> &String {
+        &self.username
+    }
 }

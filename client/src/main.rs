@@ -2,9 +2,10 @@ use clap::Parser;
 
 use iced::{Application, Settings, Size};
 
-use crate::client::Client;
+use crate::client_ui::ClientUi;
 
 mod client;
+mod client_ui;
 mod message;
 mod protocol;
 
