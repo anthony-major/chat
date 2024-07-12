@@ -26,21 +26,14 @@ impl Client {
         })
     }
 
-    pub async fn run_read_loop(&mut self) -> io::Result<()> {
-        while self.running {
-            let message = read_message(&mut self.reader).await?;
-            self.messages.push(message);
-        }
-
+    pub async fn read_message(&mut self) -> io::Result<()> {
+        let message = read_message(&mut self.reader).await?;
+        self.messages.push(message);
         Ok(())
     }
 
     pub async fn send_message(&mut self, message: Message) -> io::Result<()> {
         write_message(&mut self.writer, message).await
-    }
-
-    pub fn stop_read_loop(&mut self) {
-        self.running = false;
     }
 
     pub fn messages(&self) -> &Vec<Message> {
