@@ -1,22 +1,22 @@
 use clap::Parser;
 
-use iced::{Application, Settings, Size};
-
-use crate::client_ui::ClientUi;
+use crate::client_ui::App;
 
 mod client;
 mod client_ui;
 mod message;
 mod protocol;
 
-fn main() -> iced::Result {
+fn main() -> eframe::Result {
     // let args = Args::parse();
     // let addr = format!("{}:{}", args.address, args.port);
 
-    let mut settings = Settings::default();
-    settings.window.size = Size::new(750.0, 500.0);
-
-    Client::run(settings)
+    let options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "Chat - egui",
+        options,
+        Box::new(|_| Ok(Box::new(App::default()))),
+    )
 }
 
 #[derive(Parser)]
