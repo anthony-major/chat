@@ -1,19 +1,23 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use eframe::{
     egui::{self, Context},
     Frame,
 };
 
+use crate::{client::Client, message::Message};
+
 pub struct App {
-    messages: Vec<String>,
+    client: Arc<Mutex<Client>>,
     text_input: String,
 }
 
-impl Default for App {
-    fn default() -> Self {
-        let lines: Vec<String> = (1..=100).map(|i| i.to_string()).collect();
-
+impl App {
+    pub fn new(client: Client) -> Self {
         Self {
-            messages: lines,
+            client: Arc::new(Mutex::new(client)),
             text_input: String::new(),
         }
     }
@@ -27,15 +31,30 @@ impl eframe::App for App {
                 .max_height(ui.available_height() - 30.0)
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
-                    for line in &self.messages {
-                        ui.label(line);
+                    if let Ok(client) = self.client.try_lock() {
+                        for message in client.messages() {
+                            ui.label(message.to_string());
+                        }
                     }
                 });
 
             ui.separator();
-            let response = ui.text_edit_singleline(&mut self.text_input);
+            let response = egui::TextEdit::singleline(&mut self.text_input)
+                .desired_width(f32::INFINITY)
+                .show(ui)
+                .response;
             if response.lost_focus() {
-                self.messages.push(self.text_input.clone());
+                let client = self.client.clone();
+                let content = self.text_input.clone();
+                let ctx_clone = ctx.clone();
+
+                tokio::spawn(async move {
+                    let message = Message::new(client.lock().await.username().clone(), content);
+                    if let Err(_) = client.lock().await.send_message(message).await {
+                        ctx_clone.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+
                 self.text_input.clear();
                 response.request_focus();
             };

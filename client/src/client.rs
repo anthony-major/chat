@@ -9,7 +9,6 @@ pub struct Client {
     writer: BufWriter<WriteHalf<TcpStream>>,
     username: String,
     messages: Vec<Message>,
-    running: bool,
 }
 
 impl Client {
@@ -22,7 +21,6 @@ impl Client {
             writer: BufWriter::new(write_half),
             username: username,
             messages: Vec::new(),
-            running: true,
         })
     }
 
