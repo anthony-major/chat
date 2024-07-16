@@ -8,12 +8,11 @@ mod client_ui;
 mod message;
 mod protocol;
 
-#[tokio::main]
-async fn main() -> eframe::Result {
+fn main() -> eframe::Result {
     let args = Args::parse();
     let addr = format!("{}:{}", args.address, args.port);
 
-    let client = Client::connect(addr, args.username).await.unwrap();
+    let client = Client::connect(addr, args.username);
 
     let options = eframe::NativeOptions::default();
     eframe::run_native(

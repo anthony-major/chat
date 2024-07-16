@@ -1,5 +1,3 @@
-use std::net::SocketAddr;
-
 use tokio::io::{self, AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 

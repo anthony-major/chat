@@ -1,7 +1,3 @@
-use std::sync::Arc;
-
-use tokio::sync::Mutex;
-
 use eframe::{
     egui::{self, Context},
     Frame,
@@ -10,31 +6,35 @@ use eframe::{
 use crate::{client::Client, message::Message};
 
 pub struct App {
-    client: Arc<Mutex<Client>>,
+    client: Client,
     text_input: String,
+    messages: Vec<Message>,
 }
 
 impl App {
     pub fn new(client: Client) -> Self {
         Self {
-            client: Arc::new(Mutex::new(client)),
+            client: client,
             text_input: String::new(),
+            messages: Vec::new(),
         }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+        if let Ok(message) = self.client.read().try_recv() {
+            self.messages.push(message);
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .max_height(ui.available_height() - 30.0)
                 .stick_to_bottom(true)
                 .show(ui, |ui| {
-                    if let Ok(client) = self.client.try_lock() {
-                        for message in client.messages() {
-                            ui.label(message.to_string());
-                        }
+                    for message in &self.messages {
+                        ui.label(message.to_string());
                     }
                 });
 
@@ -44,20 +44,14 @@ impl eframe::App for App {
                 .show(ui)
                 .response;
             if response.lost_focus() {
-                let client = self.client.clone();
-                let content = self.text_input.clone();
-                let ctx_clone = ctx.clone();
-
-                tokio::spawn(async move {
-                    let message = Message::new(client.lock().await.username().clone(), content);
-                    if let Err(_) = client.lock().await.send_message(message).await {
-                        ctx_clone.send_viewport_cmd(egui::ViewportCommand::Close);
-                    }
-                });
-
+                let message = Message::new(self.client.username().clone(), self.text_input.clone());
+                self.client.send().blocking_send(message).unwrap();
                 self.text_input.clear();
                 response.request_focus();
             };
         });
+
+        // This is to get our app to run in continuous mode, so new messages are seen immediately.
+        ctx.request_repaint();
     }
 }
