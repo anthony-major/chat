@@ -39,11 +39,15 @@ impl eframe::App for App {
                 });
 
             ui.separator();
+
             let response = egui::TextEdit::singleline(&mut self.text_input)
                 .desired_width(f32::INFINITY)
                 .show(ui)
                 .response;
-            if response.lost_focus() {
+            let text_input_submitted =
+                response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+            if text_input_submitted {
                 let message = Message::new(self.client.username().clone(), self.text_input.clone());
                 self.client.send().blocking_send(message).unwrap();
                 self.text_input.clear();

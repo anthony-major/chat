@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::thread;
 
-use tokio::io::{self, BufReader, BufWriter, ReadHalf, WriteHalf};
+use tokio::io::{self, AsyncWriteExt, BufReader, BufWriter, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -20,7 +20,8 @@ impl Client {
         let sending_channel = mpsc::channel::<Message>(16);
         let receiving_channel = mpsc::channel::<Message>(16);
 
-        thread::spawn(move || {
+        let username_clone = username.clone();
+        thread::spawn(|| {
             let runtime = Runtime::new().unwrap();
             runtime.block_on(async move {
                 let stream = TcpStream::connect(server_address)
@@ -28,14 +29,21 @@ impl Client {
                     .expect("Failed to connect.");
                 let (read_half, write_half) = io::split(stream);
 
-                Self::run(
-                    BufReader::new(read_half),
-                    BufWriter::new(write_half),
-                    sending_channel.0,
-                    receiving_channel.1,
-                )
-                .await
-                .unwrap();
+                let reader = BufReader::new(read_half);
+                let mut writer = BufWriter::new(write_half);
+
+                // First we need to send a message to the server to tell it our username and fully connect
+                let username_message = Message::new(username_clone, String::new());
+                write_message(&mut writer, username_message)
+                    .await
+                    .expect("Failed to send username.");
+
+                match Self::run(reader, writer, sending_channel.0, receiving_channel.1).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        println!("{}", e);
+                    }
+                };
             });
         });
 
