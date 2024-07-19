@@ -3,7 +3,7 @@ Simple chat server and client written in Rust.
 
 The server uses tokio to handle clients concurrently. The server's port is configurable using the -p or --port command line option.
 
-The client is currently temporary and is only being used to test the server at the moment. The server's address to connect to is configurable using the -a or --address command line option, and the port is configurable with -p or --port. A full client is planned.
+The client is a GUI program written using Iced. At the moment, it is quite simple, but it should be fairly easy to expand. For example, due to the simplicity of the current protocol, only usernames and message content are shown. However, other information, such as timestamps, could be added by simply updating the Message struct and its Display implementation. The server simply forwards messages, so it does not care about whatever or how many fields there are. Also, thanks to Iced, it should be fairly simple to create and change themes. The server's address to connect to is configurable using the -a or --address command line option, and the port is configurable with -p or --port.
 
 ---
 

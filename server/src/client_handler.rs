@@ -30,7 +30,10 @@ pub async fn handle_client(
         Ok(message) => message.username().clone(),
     };
     println!("{} received username {}.", address, username);
-    let _ = tx.send(Message::new(String::from("server"), format!("{} connected.", username)));
+    let _ = tx.send(Message::new(
+        String::from("server"),
+        format!("{} connected.", username),
+    ));
 
     loop {
         tokio::select! {
@@ -63,6 +66,14 @@ pub async fn handle_client(
                 println!("Broadcasted to {}.", address);
             }
         }
+    }
+
+    let disconnected_message = Message::new(
+        String::from("server"),
+        format!("{} disconnected.", username),
+    );
+    if let Err(e) = tx.send(disconnected_message) {
+        println!("{} {} {}", address, username, e);
     }
 
     Ok(())
