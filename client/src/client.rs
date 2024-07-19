@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::thread;
 
-use tokio::io::{self, AsyncWriteExt, BufReader, BufWriter, ReadHalf, WriteHalf};
+use tokio::io::{self, BufReader, BufWriter, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::{self, Receiver, Sender};

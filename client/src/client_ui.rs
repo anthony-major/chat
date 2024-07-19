@@ -1,7 +1,8 @@
 use eframe::{
-    egui::{self, Context},
+    egui::{self, Context, ViewportCommand},
     Frame,
 };
+use tokio::sync::mpsc::error::TryRecvError;
 
 use crate::{client::Client, message::Message};
 
@@ -23,8 +24,14 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        if let Ok(message) = self.client.read().try_recv() {
-            self.messages.push(message);
+        match self.client.read().try_recv() {
+            Ok(message) => {
+                self.messages.push(message);
+            }
+            Err(TryRecvError::Disconnected) => {
+                ctx.send_viewport_cmd(ViewportCommand::Close);
+            }
+            _ => {}
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
