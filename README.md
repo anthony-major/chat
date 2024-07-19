@@ -7,7 +7,7 @@ The server hosts a single chat room where multiple clients can connect and excha
 
 The client is a GUI program written using egui. At the moment, it is quite simple, but it should be fairly easy to expand. Currently, the UI features a scrolling area that displays messages and a single-line text input. The UI uses a client backend that can be used for almost any UI/CLI. The backend is responsible for connecting to the server, receiving messages from the server, and forwarding them to a channel. It also receives messages from the UI through a channel and sends them to the server. The UI reads messages from the exposed channel receiver and displays them.
 
-## Technology Used
+### Technology Used
 * [Rust](https://www.rust-lang.org/)
 * [tokio](https://tokio.rs/)
 * [serde](https://serde.rs/)
