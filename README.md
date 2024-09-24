@@ -27,8 +27,19 @@ The -h or --help option may be used with the server and client to display progra
 ---
 
 ## Notices/Todo
-* The messaging protocol as of now is very simple. The server simply reads messages from clients and forwards them to all other clients. There is no check to see if a client is who they say they are in their messages. A client can very well pretend to be another user, even changing their username on every message. However, this does keep things simple and could allow users to change their username very easily whenever they want. 
+* The server does check to make sure that the username supplied in a message matches the original username given by the address sending the message. However, the server currently does not check for duplicate usernames, meaning multiple users may share the same username, allowing one to appear as another user.
 * Messages are not encrypted in any way going in to or out of the server. They are sent in plaintext as JSON. This means that, currently, messages can be easily read/snooped by a third party, so it is not recommended that any serious information is sent through the chat server.
 * Message history is not persisted. A database integration could be added to save message history between server launches.
 * The client GUI is pretty simple right now, it could probably be expanded, for example, a send button.
 * The client is currently configured through command line arguments. It would be nice to be able to specify the connection address, port, and username from inside the GUI.
+### Server
+* Multiple chat rooms.
+* Make sure usernames are unique.
+* Message timestamps.
+### Client
+* Start page for entering server connection information (address and port) and client information (username).
+* Additional UI.
+    * Send button.
+    * Back button to go back to start page.
+    * Server information display (address, name, etc.).
+    * Client information display (address, username, etc.).
