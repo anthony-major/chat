@@ -46,6 +46,11 @@ pub async fn handle_client(
                     }
                 };
 
+                if message.username() != &username {
+                    println!("{} gave incorrect username. Expected '{}' but received '{}'.", address, username, message.username());
+                    break;
+                }
+
                 println!("[{} {}] {:?}", address, username, message);
                 let _ = tx.send(message).map_err(|e| println!("{} {} {}", address, username, e));
             }
