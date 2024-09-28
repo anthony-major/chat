@@ -1,9 +1,12 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use tokio::io::{self, BufReader, BufWriter};
 use tokio::net::TcpStream;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::{Receiver, Sender};
+use tokio::sync::Mutex;
 
 use crate::message::Message;
 use crate::protocol::{read_message, write_message};
@@ -13,6 +16,7 @@ pub async fn handle_client(
     address: SocketAddr,
     tx: Sender<Message>,
     mut rx: Receiver<Message>,
+    users: Arc<Mutex<HashMap<String, SocketAddr>>>,
 ) -> io::Result<()> {
     println!("{} connected.", address);
 
@@ -30,6 +34,11 @@ pub async fn handle_client(
         Ok(message) => message.username().clone(),
     };
     println!("{} received username {}.", address, username);
+    if users.lock().await.contains_key(&username) {
+        println!("{} username {} already exists.", address, username);
+        return Ok(());
+    }
+    users.lock().await.insert(username.clone(), address.clone());
     let _ = tx.send(Message::new(
         String::from("server"),
         format!("{} connected.", username),
@@ -80,6 +89,8 @@ pub async fn handle_client(
     if let Err(e) = tx.send(disconnected_message) {
         println!("{} {} {}", address, username, e);
     }
+
+    users.lock().await.remove(&username);
 
     Ok(())
 }
