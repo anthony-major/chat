@@ -27,19 +27,20 @@ The -h or --help option may be used with the server and client to display progra
 ---
 
 ## Notices/Todo
-* The server does check to make sure that the username supplied in a message matches the original username given by the address sending the message. However, the server currently does not check for duplicate usernames, meaning multiple users may share the same username, allowing one to appear as another user.
 * Messages are not encrypted in any way going in to or out of the server. They are sent in plaintext as JSON. This means that, currently, messages can be easily read/snooped by a third party, so it is not recommended that any serious information is sent through the chat server.
 * Message history is not persisted. A database integration could be added to save message history between server launches.
 * The client GUI is pretty simple right now, it could probably be expanded, for example, a send button.
 * The client is currently configured through command line arguments. It would be nice to be able to specify the connection address, port, and username from inside the GUI.
+
+## Update Ideas
 ### Server
-* Multiple chat rooms.
-* Make sure usernames are unique.
+* Multiple chat rooms. This could either be implemented server-side where the server manages a list of rooms and the users in them and forwards messages only to users in a room, or client-side where the server does what it currently does (forwards all messages as is) and clients are responsible for how they handle room information (either discarding messages that are not for the user's current room or keeping them somewhere). Either way, the message protocol will have to be updated to contain room information; a simple room or room_id field should suffice. 
 * Message timestamps.
 ### Client
-* Start page for entering server connection information (address and port) and client information (username).
+* Start page for entering server connection information (address and port) and client information (username). (Room selection could be here as well if rooms are added.)
 * Additional UI.
     * Send button.
     * Back button to go back to start page.
     * Server information display (address, name, etc.).
     * Client information display (address, username, etc.).
+    * Etc.
